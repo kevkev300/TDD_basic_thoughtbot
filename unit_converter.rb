@@ -1,5 +1,4 @@
-require 'rspec/autorun'
-
+# to run tests use 'rspec unit_coverter.rb' in command line
 # UnitConverter.new(2, cups, liter).convert to eq 0.473 liters
 
 UnitMissmatchError = Class.new(StandardError)
@@ -22,14 +21,32 @@ class UnitConverter
   private
 
   CONVERSION_FACTORS = {
-    cup: {
-      liter: 0.473
+    liter: {
+      liter: 1,
+      cup: 4.226775,
+      pint: 2.11338
+    },
+
+    gram: {
+      gram: 1,
+      kilogram: 1000
     }
   }
 
   def conversion_factor(from:, to:)
-    CONVERSION_FACTORS[from][to] ||
-      raise(UnitMissmatchError, "Can't convert between #{from} to #{to}")
+    dimension = common_dimension(from, to)
+    if !dimension.nil?
+      CONVERSION_FACTORS[dimension][to] / CONVERSION_FACTORS[dimension][from]
+    else
+      raise(UnitMissmatchError, "Can't convert between #{from} and #{to}")
+    end
+  end
+
+  def common_dimension(from, to)
+    CONVERSION_FACTORS.keys.find do |cannonical_unit|
+      CONVERSION_FACTORS[cannonical_unit].keys.include?(from) &&
+        CONVERSION_FACTORS[cannonical_unit].keys.include?(to)
+    end
   end
 end
 
@@ -43,7 +60,7 @@ describe UnitConverter do
 
       result = converter.convert
 
-      expect(result.amount).to eq(2 * 0.473)
+      expect(result.amount).to be_within(0.1).of(0.473)
       expect(result.unit).to eq(:liter)
     end
 
@@ -51,6 +68,16 @@ describe UnitConverter do
       initial_quantity = Quantity.new(2, :cup)
       converter = UnitConverter.new(initial_quantity, :gramm)
       expect { converter.convert }.to raise_error(UnitMissmatchError)
+    end
+
+    it "can convert between quantities of the same unit" do
+      initial_quantity = Quantity.new(2, :cup)
+      converter = UnitConverter.new(initial_quantity, :cup)
+
+      result = converter.convert
+
+      expect(result.amount).to be_within(0.001).of(2)
+      expect(result.unit).to eq(:cup)
     end
   end
 end
